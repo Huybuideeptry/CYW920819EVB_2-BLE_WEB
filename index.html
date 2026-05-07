@@ -4,57 +4,113 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>CYW20819 BLE Control</title>
+<title>CYW20819 Dashboard</title>
 
 <style>
 
-body{
+*{
     margin:0;
-    width:100vw;
-    height:100vh;
-
-    display:flex;
-    justify-content:center;
-    align-items:center;
-
-    background:#111;
-    font-family:Arial;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial, sans-serif;
 }
 
-.container{
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:25px;
+body{
+    background:#111827;
+    color:white;
+    min-height:100vh;
+    padding:20px;
 }
 
-button{
-    width:220px;
-    height:220px;
+.header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:25px;
+}
 
-    border:none;
-    border-radius:50%;
-
+.title{
     font-size:28px;
     font-weight:bold;
-
-    cursor:pointer;
-
-    background:#2ecc71;
-    color:white;
-
-    box-shadow:0 0 25px rgba(46,204,113,0.5);
-
-    transition:0.2s;
-}
-
-button:active{
-    transform:scale(0.96);
 }
 
 .status{
-    color:white;
+    padding:10px 18px;
+    border-radius:20px;
+    background:#374151;
+    font-size:14px;
+}
+
+.grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:20px;
+}
+
+.card{
+    background:#1f2937;
+    border-radius:24px;
+    padding:22px;
+    box-shadow:0 0 18px rgba(0,0,0,0.3);
+}
+
+.card-title{
+    font-size:16px;
+    color:#9ca3af;
+    margin-bottom:20px;
+}
+
+.big-value{
+    font-size:42px;
+    font-weight:bold;
+}
+
+.unit{
     font-size:20px;
+    color:#9ca3af;
+}
+
+.toggle{
+    width:100%;
+    height:70px;
+    border:none;
+    border-radius:20px;
+    font-size:24px;
+    font-weight:bold;
+    cursor:pointer;
+    transition:0.2s;
+}
+
+.toggle-on{
+    background:#22c55e;
+    color:white;
+}
+
+.toggle-off{
+    background:#374151;
+    color:white;
+}
+
+.connect-btn{
+    width:100%;
+    height:70px;
+    border:none;
+    border-radius:20px;
+    background:#3b82f6;
+    color:white;
+    font-size:22px;
+    font-weight:bold;
+    cursor:pointer;
+}
+
+.slider{
+    width:100%;
+    margin-top:15px;
+}
+
+.slider-value{
+    margin-top:10px;
+    font-size:24px;
 }
 
 </style>
@@ -62,12 +118,56 @@ button:active{
 
 <body>
 
-<div class="container">
-
-    <button id="mainBtn">CONNECT</button>
-
+<div class="header">
+    <div class="title">CYW20819 Dashboard</div>
     <div class="status" id="status">
         Disconnected
+    </div>
+</div>
+
+<div class="grid">
+
+    <div class="card">
+        <div class="card-title">BLE Connection</div>
+
+        <button class="connect-btn"
+                onclick="connectBLE()">
+            CONNECT
+        </button>
+    </div>
+
+    <div class="card">
+        <div class="card-title">LED Control</div>
+
+        <button id="ledBtn"
+                class="toggle toggle-off"
+                onclick="toggleLED()">
+            OFF
+        </button>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Temperature</div>
+
+        <div class="big-value">
+            <span id="temp">26</span>
+            <span class="unit">°C</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">PWM Output</div>
+
+        <input type="range"
+               min="0"
+               max="255"
+               value="120"
+               class="slider"
+               id="pwmSlider">
+
+        <div class="slider-value">
+            <span id="pwmValue">120</span>
+        </div>
     </div>
 
 </div>
@@ -84,71 +184,100 @@ let bleDevice;
 let configChar;
 let ledState = false;
 
-const button = document.getElementById("mainBtn");
-const statusText = document.getElementById("status");
+const statusText =
+document.getElementById("status");
 
-button.addEventListener("click", async () => {
+const ledBtn =
+document.getElementById("ledBtn");
 
-    try{
+async function connectBLE()
+{
+    try
+    {
+        statusText.innerText = "Scanning...";
 
-        if(!bleDevice)
-        {
-            statusText.innerText = "Connecting...";
+        bleDevice =
+        await navigator.bluetooth.requestDevice({
 
-            bleDevice = await navigator.bluetooth.requestDevice({
-    filters: [
-        {
-            namePrefix: "Iot"
-        }
-    ],
-    optionalServices: [
-        '2320567c-05cf-6eb4-c341-772851827e1b'
-    ]
-});
+            filters:[
+                {
+                    services:[SERVICE_UUID]
+                }
+            ]
 
-            const server = await bleDevice.gatt.connect();
+        });
 
-            const service =
-            await server.getPrimaryService(SERVICE_UUID);
+        const server =
+        await bleDevice.gatt.connect();
 
-            configChar =
-            await service.getCharacteristic(CONFIG_UUID);
+        const service =
+        await server.getPrimaryService(
+            SERVICE_UUID
+        );
 
-            statusText.innerText = "Connected";
+        configChar =
+        await service.getCharacteristic(
+            CONFIG_UUID
+        );
 
-            button.innerText = "LED OFF";
+        statusText.innerText = "Connected";
 
-            return;
-        }
-
-        ledState = !ledState;
-
-        if(ledState)
-        {
-            await configChar.writeValue(
-                Uint8Array.of(1)
-            );
-
-            button.style.background = "#e74c3c";
-            button.innerText = "LED ON";
-        }
-        else
-        {
-            await configChar.writeValue(
-                Uint8Array.of(0)
-            );
-
-            button.style.background = "#2ecc71";
-            button.innerText = "LED OFF";
-        }
-
+        bleDevice.addEventListener(
+            'gattserverdisconnected',
+            onDisconnected
+        );
     }
     catch(err)
     {
         console.log(err);
-
         statusText.innerText = "Error";
     }
+}
+
+function onDisconnected()
+{
+    statusText.innerText = "Disconnected";
+}
+
+async function toggleLED()
+{
+    if(!configChar) return;
+
+    ledState = !ledState;
+
+    if(ledState)
+    {
+        await configChar.writeValue(
+            Uint8Array.of(1)
+        );
+
+        ledBtn.innerText = "ON";
+        ledBtn.classList.remove("toggle-off");
+        ledBtn.classList.add("toggle-on");
+    }
+    else
+    {
+        await configChar.writeValue(
+            Uint8Array.of(0)
+        );
+
+        ledBtn.innerText = "OFF";
+        ledBtn.classList.remove("toggle-on");
+        ledBtn.classList.add("toggle-off");
+    }
+}
+
+const pwmSlider =
+document.getElementById("pwmSlider");
+
+const pwmValue =
+document.getElementById("pwmValue");
+
+pwmSlider.addEventListener("input", () => {
+
+    pwmValue.innerText = pwmSlider.value;
+
+    // sau này gửi BLE PWM ở đây
 
 });
 
