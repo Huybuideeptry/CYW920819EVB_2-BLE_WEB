@@ -96,9 +96,15 @@ button.addEventListener("click", async () => {
             statusText.innerText = "Connecting...";
 
             bleDevice = await navigator.bluetooth.requestDevice({
-                acceptAllDevices:true,
-                optionalServices:[SERVICE_UUID]
-            });
+    filters: [
+        {
+            namePrefix: "Iot"
+        }
+    ],
+    optionalServices: [
+        '2320567c-05cf-6eb4-c341-772851827e1b'
+    ]
+});
 
             const server = await bleDevice.gatt.connect();
 
