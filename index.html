@@ -153,6 +153,26 @@ body{
     </div>
 
     <div class="card">
+    <div class="card-title">Phòng khách</div>
+
+    <button id="livingBtn"
+            class="toggle toggle-off"
+            onclick="toggleLiving()">
+        OFF
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-title">Toilet</div>
+
+    <button id="toiletBtn"
+            class="toggle toggle-off"
+            onclick="toggleToilet()">
+        OFF
+    </button>
+</div>
+    
+    <div class="card">
         <div class="card-title">Nhiệt độ</div>
         <div class="big-value">
             <span id="temp">26</span>
@@ -183,6 +203,14 @@ let configChar;
 
 let bedroomState = false;
 let kitchenState = false;
+let livingState = false;
+let toiletState = false;
+
+const livingBtn =
+document.getElementById("livingBtn");
+
+const toiletBtn =
+document.getElementById("toiletBtn");
 
 const statusText =
 document.getElementById("status");
@@ -244,6 +272,63 @@ function onDisconnected()
 {
     statusText.innerText = "Disconnected";
 }
+
+async function toggleLiving()
+{
+    if(!configChar) return;
+
+    livingState = !livingState;
+
+    if(livingState)
+    {
+        await configChar.writeValue(
+            Uint8Array.of(3,1)
+        );
+
+        livingBtn.innerText = "ON";
+        livingBtn.classList.remove("toggle-off");
+        livingBtn.classList.add("toggle-on");
+    }
+    else
+    {
+        await configChar.writeValue(
+            Uint8Array.of(3,0)
+        );
+
+        livingBtn.innerText = "OFF";
+        livingBtn.classList.remove("toggle-on");
+        livingBtn.classList.add("toggle-off");
+    }
+}
+
+async function toggleToilet()
+{
+    if(!configChar) return;
+
+    toiletState = !toiletState;
+
+    if(toiletState)
+    {
+        await configChar.writeValue(
+            Uint8Array.of(4,1)
+        );
+
+        toiletBtn.innerText = "ON";
+        toiletBtn.classList.remove("toggle-off");
+        toiletBtn.classList.add("toggle-on");
+    }
+    else
+    {
+        await configChar.writeValue(
+            Uint8Array.of(4,0)
+        );
+
+        toiletBtn.innerText = "OFF";
+        toiletBtn.classList.remove("toggle-on");
+        toiletBtn.classList.add("toggle-off");
+    }
+}
+
 
 async function toggleBedroom()
 {
