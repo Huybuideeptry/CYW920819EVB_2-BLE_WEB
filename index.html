@@ -254,7 +254,7 @@ async function toggleBedroom()
     if(bedroomState)
     {
         await configChar.writeValue(
-            Uint8Array.of(1)
+        Uint8Array.of(1,1)
         );
 
         bedroomBtn.innerText = "ON";
@@ -264,8 +264,8 @@ async function toggleBedroom()
     else
     {
         await configChar.writeValue(
-            Uint8Array.of(0)
-        );
+        Uint8Array.of(1,0)
+    );
 
         bedroomBtn.innerText = "OFF";
         bedroomBtn.classList.remove("toggle-on");
@@ -282,8 +282,8 @@ async function toggleKitchen()
     if(kitchenState)
     {
         await configChar.writeValue(
-            Uint8Array.of(2)
-        );
+        Uint8Array.of(2,1)
+    );
 
         kitchenBtn.innerText = "ON";
         kitchenBtn.classList.remove("toggle-off");
@@ -292,9 +292,8 @@ async function toggleKitchen()
     else
     {
         await configChar.writeValue(
-            Uint8Array.of(3)
-        );
-
+        Uint8Array.of(2,0)
+    );
         kitchenBtn.innerText = "OFF";
         kitchenBtn.classList.remove("toggle-on");
         kitchenBtn.classList.add("toggle-off");
