@@ -191,8 +191,9 @@ body{
 </div>
 
 <script>
+
 const SERVICE_UUID = '1b7e8251-2877-41c3-b46e-cf057c562023';
-const NOTIFY_UUID  = '8ac32d3f-5cb9-4d44-bec2-ee689169f626'; // thêm dòng này
+const NOTIFY_UUID  = '8ac32d3f-5cb9-4d44-bec2-ee689169f626';
 const CONFIG_UUID  = '5e9bf2a8-f93f-4481-a67e-3b2f4a07891a';
 
 let bleDevice;
@@ -200,28 +201,14 @@ let configChar;
 
 let bedroomState = false;
 let kitchenState = false;
-let livingState = false;
-let toiletState = false;
+let livingState  = false;
+let toiletState  = false;
 
-const livingBtn =
-document.getElementById("livingBtn");
-
-const toiletBtn =
-document.getElementById("toiletBtn");
-
-const statusText =
-document.getElementById("status");
-
-const bedroomBtn =
-document.getElementById("bedroomBtn");
-
-const kitchenBtn =
-document.getElementById("kitchenBtn");
-
-
-
-let bleDevice;
-let configChar;
+const livingBtn  = document.getElementById("livingBtn");
+const toiletBtn  = document.getElementById("toiletBtn");
+const statusText = document.getElementById("status");
+const bedroomBtn = document.getElementById("bedroomBtn");
+const kitchenBtn = document.getElementById("kitchenBtn");
 
 async function connectBLE() {
     try {
@@ -234,26 +221,24 @@ async function connectBLE() {
         const server  = await bleDevice.gatt.connect();
         const service = await server.getPrimaryService(SERVICE_UUID);
 
-        // Char để WRITE điều khiển đèn
         configChar = await service.getCharacteristic(CONFIG_UUID);
 
-        // Char để NHẬN notification T/H
         const notifyChar = await service.getCharacteristic(NOTIFY_UUID);
-        await notifyChar.startNotifications();
+        await notifyChar.startNotifications();  // FIX 1: subscribe notification
 
-        notifyChar.addEventListener('characteristicvaluechanged', event => {
+        notifyChar.addEventListener('characteristicvaluechanged', event => {  // FIX 2: đúng variable
             let value = new TextDecoder().decode(event.target.value);
             console.log("BLE:", value);
 
             let match = value.match(/T:(\d+)C H:(\d+)%/);
             if(match) {
-                document.getElementById("temp").innerText = match[1];
+                document.getElementById("temp").innerText     = match[1];
                 document.getElementById("humidity").innerText = match[2];
             }
         });
 
         bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
-        statusText.innerText = "Connected";
+        statusText.innerText = "Connected";  // FIX 3: status rõ hơn
     }
     catch(err) {
         console.log(err);
@@ -261,141 +246,40 @@ async function connectBLE() {
     }
 }
 
-function onDisconnected()
-{
+function onDisconnected() {
     statusText.innerText = "Disconnected";
 }
 
-async function toggleLiving()
-{
+async function toggleLiving() {
     if(!configChar) return;
-
     livingState = !livingState;
-
-    if(livingState)
-    {
-        await configChar.writeValue(
-            Uint8Array.of(3,1)
-        );
-
-        livingBtn.innerText = "ON";
-        livingBtn.classList.remove("toggle-off");
-        livingBtn.classList.add("toggle-on");
-    }
-    else
-    {
-        await configChar.writeValue(
-            Uint8Array.of(3,0)
-        );
-
-        livingBtn.innerText = "OFF";
-        livingBtn.classList.remove("toggle-on");
-        livingBtn.classList.add("toggle-off");
-    }
+    await configChar.writeValue(Uint8Array.of(3, livingState ? 1 : 0));
+    livingBtn.innerText = livingState ? "ON" : "OFF";
+    livingBtn.className = "toggle " + (livingState ? "toggle-on" : "toggle-off");
 }
 
-async function toggleToilet()
-{
+async function toggleToilet() {
     if(!configChar) return;
-
     toiletState = !toiletState;
-
-    if(toiletState)
-    {
-        await configChar.writeValue(
-            Uint8Array.of(4,1)
-        );
-
-        toiletBtn.innerText = "ON";
-        toiletBtn.classList.remove("toggle-off");
-        toiletBtn.classList.add("toggle-on");
-    }
-    else
-    {
-        await configChar.writeValue(
-            Uint8Array.of(4,0)
-        );
-
-        toiletBtn.innerText = "OFF";
-        toiletBtn.classList.remove("toggle-on");
-        toiletBtn.classList.add("toggle-off");
-    }
+    await configChar.writeValue(Uint8Array.of(4, toiletState ? 1 : 0));
+    toiletBtn.innerText = toiletState ? "ON" : "OFF";
+    toiletBtn.className = "toggle " + (toiletState ? "toggle-on" : "toggle-off");
 }
 
-
-async function toggleBedroom()
-{
+async function toggleBedroom() {
     if(!configChar) return;
-
     bedroomState = !bedroomState;
-
-    if(bedroomState)
-    {
-        await configChar.writeValue(
-        Uint8Array.of(1,1)
-        );
-
-        bedroomBtn.innerText = "ON";
-        bedroomBtn.classList.remove("toggle-off");
-        bedroomBtn.classList.add("toggle-on");
-    }
-    else
-    {
-        await configChar.writeValue(
-        Uint8Array.of(1,0)
-    );
-
-        bedroomBtn.innerText = "OFF";
-        bedroomBtn.classList.remove("toggle-on");
-        bedroomBtn.classList.add("toggle-off");
-    }
+    await configChar.writeValue(Uint8Array.of(1, bedroomState ? 1 : 0));
+    bedroomBtn.innerText = bedroomState ? "ON" : "OFF";
+    bedroomBtn.className = "toggle " + (bedroomState ? "toggle-on" : "toggle-off");
 }
 
-async function toggleKitchen()
-{
+async function toggleKitchen() {
     if(!configChar) return;
-
     kitchenState = !kitchenState;
-
-    if(kitchenState)
-    {
-        await configChar.writeValue(
-        Uint8Array.of(2,1)
-    );
-
-        kitchenBtn.innerText = "ON";
-        kitchenBtn.classList.remove("toggle-off");
-        kitchenBtn.classList.add("toggle-on");
-    }
-    else
-    {
-        await configChar.writeValue(
-        Uint8Array.of(2,0)
-    );
-        kitchenBtn.innerText = "OFF";
-        kitchenBtn.classList.remove("toggle-on");
-        kitchenBtn.classList.add("toggle-off");
-    }
-}
-
-// demo data
-function startFakeSensor()
-{
-    setInterval(() => {
-
-        let temp =
-        25 + Math.floor(Math.random()*5);
-
-        let hum =
-        60 + Math.floor(Math.random()*10);
-
-        document.getElementById("temp")
-        .innerText = temp;
-
-        document.getElementById("humidity")
-        .innerText = hum;
-
-    }, 2000);
+    await configChar.writeValue(Uint8Array.of(2, kitchenState ? 1 : 0));
+    kitchenBtn.innerText = kitchenState ? "ON" : "OFF";
+    kitchenBtn.className = "toggle " + (kitchenState ? "toggle-on" : "toggle-off");
 }
 
 </script>
