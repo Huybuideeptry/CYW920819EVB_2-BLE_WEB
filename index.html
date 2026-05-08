@@ -253,13 +253,30 @@ async function connectBLE()
 
         statusText.innerText = "Connected";
 
-        bleDevice.addEventListener(
-            'gattserverdisconnected',
-            onDisconnected
-        );
+      characteristic.addEventListener(
+'characteristicvaluechanged',
+event => {
+
+    let value = new TextDecoder()
+    .decode(event.target.value);
+
+    console.log(value);
+
+    // ví dụ nhận: T:28C H:65%
+    let match = value.match(/T:(\d+)C H:(\d+)%/);
+
+    if(match)
+    {
+        document.getElementById("temp")
+        .innerText = match[1];
+
+        document.getElementById("humidity")
+        .innerText = match[2];
+    }
+});
 
         // demo sensor update
-        startFakeSensor();
+        //startFakeSensor();
     }
     catch(err)
     {
