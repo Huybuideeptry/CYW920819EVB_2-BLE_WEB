@@ -213,23 +213,34 @@ const kitchenBtn = document.getElementById("kitchenBtn");
 async function connectBLE() {
     try {
         statusText.innerText = "Scanning...";
-
         bleDevice = await navigator.bluetooth.requestDevice({
             filters: [{ services: [SERVICE_UUID] }]
         });
+        console.log("Device selected:", bleDevice.name);
 
-        const server  = await bleDevice.gatt.connect();
+        statusText.innerText = "Connecting GATT...";
+        const server = await bleDevice.gatt.connect();
+        console.log("GATT connected");
+
+        statusText.innerText = "Getting service...";
         const service = await server.getPrimaryService(SERVICE_UUID);
+        console.log("Service found");
 
+        statusText.innerText = "Getting configChar...";
         configChar = await service.getCharacteristic(CONFIG_UUID);
+        console.log("configChar ok");
 
+        statusText.innerText = "Getting notifyChar...";
         const notifyChar = await service.getCharacteristic(NOTIFY_UUID);
-        await notifyChar.startNotifications();  // FIX 1: subscribe notification
+        console.log("notifyChar ok");
 
-        notifyChar.addEventListener('characteristicvaluechanged', event => {  // FIX 2: đúng variable
+        statusText.innerText = "Starting notifications...";
+        await notifyChar.startNotifications();
+        console.log("Notifications started");
+
+        notifyChar.addEventListener('characteristicvaluechanged', event => {
             let value = new TextDecoder().decode(event.target.value);
             console.log("BLE:", value);
-
             let match = value.match(/T:(\d+)C H:(\d+)%/);
             if(match) {
                 document.getElementById("temp").innerText     = match[1];
@@ -238,10 +249,10 @@ async function connectBLE() {
         });
 
         bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
-        statusText.innerText = "Connected";  // FIX 3: status rõ hơn
+        statusText.innerText = "Connected ✓";
     }
     catch(err) {
-        console.log(err);
+        console.error("FAIL at:", statusText.innerText, "→", err);
         statusText.innerText = "Error: " + err.message;
     }
 }
