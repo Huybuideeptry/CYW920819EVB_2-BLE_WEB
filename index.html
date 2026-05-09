@@ -1,299 +1,501 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Smart Home BLE</title>
-
+<title>Smart Home</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
 <style>
-
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
-    font-family:Arial, sans-serif;
+:root {
+  --bg:       #0a0a0f;
+  --surface:  #12121a;
+  --border:   #1e1e2e;
+  --accent:   #00f5a0;
+  --accent2:  #00c8ff;
+  --danger:   #ff4d6d;
+  --text:     #e2e8f0;
+  --muted:    #4a5568;
+  --on-clr:   #00f5a0;
+  --off-clr:  #1e1e2e;
 }
 
-body{
-    background:#111827;
-    color:white;
-    min-height:100vh;
-    padding:20px;
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  min-height: 100vh;
+  padding: 24px;
+  overflow-x: hidden;
 }
 
-.header{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    margin-bottom:25px;
+/* Subtle grid background */
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background-image:
+    linear-gradient(rgba(0,245,160,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,245,160,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events:none;
+  z-index:0;
 }
 
-.title{
-    font-size:28px;
-    font-weight:bold;
+.wrap { position:relative; z-index:1; max-width:900px; margin:0 auto; }
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
 }
 
-.status{
-    padding:10px 18px;
-    border-radius:20px;
-    background:#374151;
-    font-size:14px;
+.logo {
+  font-family: 'Syne', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
 }
 
-.grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-    gap:20px;
+.logo span { color: var(--accent); }
+
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 100px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  transition: all 0.3s;
 }
 
-.card{
-    background:#1f2937;
-    border-radius:24px;
-    padding:22px;
-    box-shadow:0 0 18px rgba(0,0,0,0.3);
+.status-pill.connected {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
-.card-title{
-    font-size:16px;
-    color:#9ca3af;
-    margin-bottom:20px;
+.status-pill.reconnecting {
+  border-color: var(--accent2);
+  color: var(--accent2);
 }
 
-.toggle{
-    width:100%;
-    height:80px;
-    border:none;
-    border-radius:20px;
-    font-size:24px;
-    font-weight:bold;
-    cursor:pointer;
-    transition:0.2s;
+.status-pill.error {
+  border-color: var(--danger);
+  color: var(--danger);
 }
 
-.toggle-on{
-    background:#22c55e;
-    color:white;
+.dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: currentColor;
 }
 
-.toggle-off{
-    background:#374151;
-    color:white;
+.dot.pulse {
+  animation: pulse 1.2s infinite;
 }
 
-.connect-btn{
-    width:100%;
-    height:70px;
-    border:none;
-    border-radius:20px;
-    background:#3b82f6;
-    color:white;
-    font-size:22px;
-    font-weight:bold;
-    cursor:pointer;
+@keyframes pulse {
+  0%, 100% { opacity:1; transform:scale(1); }
+  50%       { opacity:0.4; transform:scale(0.7); }
 }
 
-.big-value{
-    font-size:42px;
-    font-weight:bold;
+/* Grid layout */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
 }
 
-.unit{
-    font-size:20px;
-    color:#9ca3af;
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  transition: border-color 0.2s, transform 0.15s;
+  position: relative;
+  overflow: hidden;
 }
 
-.sensor-icon{
-    font-size:42px;
-    margin-bottom:10px;
+.card:hover { border-color: var(--muted); transform: translateY(-2px); }
+
+.card::after {
+  content:'';
+  position:absolute;
+  top:0; left:0; right:0;
+  height:1px;
+  background: linear-gradient(90deg, transparent, rgba(0,245,160,0.15), transparent);
 }
 
+.card-label {
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+
+/* Connect button */
+.btn-connect {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--accent);
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-connect:hover {
+  background: rgba(0,245,160,0.08);
+  box-shadow: 0 0 20px rgba(0,245,160,0.15);
+}
+
+.btn-connect:active { transform: scale(0.98); }
+
+/* Toggle */
+.toggle-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.room-name {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.toggle {
+  width: 52px; height: 28px;
+  border-radius: 100px;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.25s;
+  background: var(--off-clr);
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.toggle::after {
+  content:'';
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 0.25s, background 0.25s;
+}
+
+.toggle.on {
+  background: rgba(0,245,160,0.15);
+  border-color: var(--accent);
+}
+
+.toggle.on::after {
+  transform: translateX(24px);
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(0,245,160,0.6);
+}
+
+.state-text {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  margin-top: 10px;
+  transition: color 0.2s;
+}
+
+.state-text.on { color: var(--accent); }
+
+/* Sensor cards */
+.sensor-val {
+  font-family: 'Syne', sans-serif;
+  font-size: 48px;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 4px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.sensor-unit {
+  font-size: 13px;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+}
+
+.sensor-bar {
+  margin-top: 14px;
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.sensor-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  transition: width 0.6s ease;
+}
+
+/* Connection card wide */
+.card-connect { grid-column: 1 / -1; }
+
+@media(min-width:600px) {
+  .card-connect { grid-column: span 2; }
+}
+
+/* Reconnect indicator */
+.reconnect-info {
+  font-size: 11px;
+  color: var(--accent2);
+  margin-top: 10px;
+  display: none;
+  letter-spacing: 0.05em;
+}
+
+.reconnect-info.show { display: block; }
+
+/* Last updated */
+.last-update {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 8px;
+  letter-spacing: 0.05em;
+}
 </style>
 </head>
-
 <body>
+<div class="wrap">
 
-<div class="header">
-    <div class="title">Smart Home BLE</div>
-
-    <div class="status" id="status">
-        Disconnected
+  <div class="header">
+    <div class="logo">SMART<span>HOME</span></div>
+    <div class="status-pill" id="statusPill">
+      <div class="dot" id="statusDot"></div>
+      <span id="statusText">Disconnected</span>
     </div>
-</div>
+  </div>
 
-<div class="grid">
+  <div class="grid">
 
-    <div class="card">
-        <div class="card-title">BLE Connection</div>
-
-        <button class="connect-btn"
-                onclick="connectBLE()">
-            CONNECT
-        </button>
-    </div>
-
-    <div class="card">
-        <div class="card-title">Phòng ngủ</div>
-
-        <button id="bedroomBtn"
-                class="toggle toggle-off"
-                onclick="toggleBedroom()">
-            OFF
-        </button>
+    <!-- Connect -->
+    <div class="card card-connect">
+      <div class="card-label">BLE Connection — IotKH</div>
+      <button class="btn-connect" id="connectBtn" onclick="connectBLE()">
+        [ CONNECT ]
+      </button>
+      <div class="reconnect-info" id="reconnectInfo">
+        ↻ Auto reconnecting...
+      </div>
     </div>
 
+    <!-- Rooms -->
     <div class="card">
-        <div class="card-title">Phòng bếp</div>
-
-        <button id="kitchenBtn"
-                class="toggle toggle-off"
-                onclick="toggleKitchen()">
-            OFF
-        </button>
+      <div class="card-label">Room 01</div>
+      <div class="toggle-wrap">
+        <div class="room-name">Phòng ngủ</div>
+        <button class="toggle" id="btn1" onclick="toggleRoom(1)"></button>
+      </div>
+      <div class="state-text" id="state1">OFF</div>
     </div>
 
     <div class="card">
-    <div class="card-title">Phòng khách</div>
-
-    <button id="livingBtn"
-            class="toggle toggle-off"
-            onclick="toggleLiving()">
-        OFF
-    </button>
-</div>
-
-<div class="card">
-    <div class="card-title">Toilet</div>
-
-    <button id="toiletBtn"
-            class="toggle toggle-off"
-            onclick="toggleToilet()">
-        OFF
-    </button>
-</div>
-    
-    <div class="card">
-        <div class="card-title">Nhiệt độ</div>
-        <div class="big-value">
-            <span id="temp">26</span>
-            <span class="unit">°C</span>
-        </div>
+      <div class="card-label">Room 02</div>
+      <div class="toggle-wrap">
+        <div class="room-name">Phòng bếp</div>
+        <button class="toggle" id="btn2" onclick="toggleRoom(2)"></button>
+      </div>
+      <div class="state-text" id="state2">OFF</div>
     </div>
 
     <div class="card">
-        <div class="card-title">Độ ẩm</div>
-        <div class="big-value">
-            <span id="humidity">65</span>
-            <span class="unit">%</span>
-        </div>
+      <div class="card-label">Room 03</div>
+      <div class="toggle-wrap">
+        <div class="room-name">Phòng khách</div>
+        <button class="toggle" id="btn3" onclick="toggleRoom(3)"></button>
+      </div>
+      <div class="state-text" id="state3">OFF</div>
     </div>
 
+    <div class="card">
+      <div class="card-label">Room 04</div>
+      <div class="toggle-wrap">
+        <div class="room-name">Toilet</div>
+        <button class="toggle" id="btn4" onclick="toggleRoom(4)"></button>
+      </div>
+      <div class="state-text" id="state4">OFF</div>
+    </div>
+
+    <!-- Temperature -->
+    <div class="card">
+      <div class="card-label">Nhiệt độ</div>
+      <div class="sensor-val" id="temp">--</div>
+      <div class="sensor-unit">°C / Temperature</div>
+      <div class="sensor-bar">
+        <div class="sensor-bar-fill" id="tempBar" style="width:0%"></div>
+      </div>
+      <div class="last-update" id="tempUpdate">No data</div>
+    </div>
+
+    <!-- Humidity -->
+    <div class="card">
+      <div class="card-label">Độ ẩm</div>
+      <div class="sensor-val" id="humidity">--</div>
+      <div class="sensor-unit">% / Humidity</div>
+      <div class="sensor-bar">
+        <div class="sensor-bar-fill" id="humBar" style="width:0%"></div>
+      </div>
+      <div class="last-update" id="humUpdate">No data</div>
+    </div>
+
+  </div>
 </div>
 
 <script>
-
 const SERVICE_UUID = '1b7e8251-2877-41c3-b46e-cf057c562023';
 const NOTIFY_UUID  = '8ac32d3f-5cb9-4d44-bec2-ee689169f626';
 const CONFIG_UUID  = '5e9bf2a8-f93f-4481-a67e-3b2f4a07891a';
 
-let bleDevice;
-let configChar;
+let bleDevice   = null;
+let configChar  = null;
+let reconnTimer = null;
+let roomStates  = [false, false, false, false]; // index 0=room1 ... 3=room4
 
-let bedroomState = false;
-let kitchenState = false;
-let livingState  = false;
-let toiletState  = false;
+// ── UI helpers ────────────────────────────────────────
+function setStatus(state, text) {
+  const pill = document.getElementById('statusPill');
+  const dot  = document.getElementById('statusDot');
+  pill.className = 'status-pill ' + state;
+  dot.className  = 'dot' + (state === 'reconnecting' ? ' pulse' : '');
+  document.getElementById('statusText').innerText = text;
+}
 
-const livingBtn  = document.getElementById("livingBtn");
-const toiletBtn  = document.getElementById("toiletBtn");
-const statusText = document.getElementById("status");
-const bedroomBtn = document.getElementById("bedroomBtn");
-const kitchenBtn = document.getElementById("kitchenBtn");
+function showReconnectInfo(show) {
+  document.getElementById('reconnectInfo').className =
+    'reconnect-info' + (show ? ' show' : '');
+}
 
+function updateSensor(temp, hum) {
+  document.getElementById('temp').innerText     = temp;
+  document.getElementById('humidity').innerText = hum;
+  document.getElementById('tempBar').style.width = Math.min(temp / 50 * 100, 100) + '%';
+  document.getElementById('humBar').style.width  = Math.min(hum, 100) + '%';
+
+  const now = new Date().toLocaleTimeString('vi-VN');
+  document.getElementById('tempUpdate').innerText = 'Updated ' + now;
+  document.getElementById('humUpdate').innerText  = 'Updated ' + now;
+}
+
+function setRoomUI(id, state) {
+  const btn   = document.getElementById('btn'   + id);
+  const label = document.getElementById('state' + id);
+  btn.className   = 'toggle' + (state ? ' on' : '');
+  label.className = 'state-text' + (state ? ' on' : '');
+  label.innerText = state ? 'ON' : 'OFF';
+}
+
+// ── Notification handler ──────────────────────────────
+function handleNotify(event) {
+  const value = new TextDecoder().decode(event.target.value);
+  console.log('BLE:', value);
+  const match = value.match(/T:(\d+)C H:(\d+)%/);
+  if(match) updateSensor(match[1], match[2]);
+}
+
+// ── Setup characteristics ─────────────────────────────
+async function setupChars(server) {
+  const service    = await server.getPrimaryService(SERVICE_UUID);
+  configChar       = await service.getCharacteristic(CONFIG_UUID);
+  const notifyChar = await service.getCharacteristic(NOTIFY_UUID);
+  await notifyChar.startNotifications();
+  notifyChar.addEventListener('characteristicvaluechanged', handleNotify);
+}
+
+// ── Connect ───────────────────────────────────────────
 async function connectBLE() {
+  try {
+    setStatus('', 'Scanning...');
+
+    bleDevice = await navigator.bluetooth.requestDevice({
+      filters: [{ services: [SERVICE_UUID] }]
+    });
+
+    bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
+
+    const server = await bleDevice.gatt.connect();
+    await setupChars(server);
+
+    setStatus('connected', 'Connected');
+    showReconnectInfo(false);
+    document.getElementById('connectBtn').innerText = '[ CONNECTED ]';
+  }
+  catch(err) {
+    console.error(err);
+    setStatus('error', 'Error');
+  }
+}
+
+// ── Disconnect handler + auto reconnect ──────────────
+function onDisconnected() {
+  configChar = null;
+  setStatus('reconnecting', 'Reconnecting...');
+  showReconnectInfo(true);
+  document.getElementById('connectBtn').innerText = '[ CONNECT ]';
+
+  // Clear any existing timer
+  if(reconnTimer) clearInterval(reconnTimer);
+
+  reconnTimer = setInterval(async () => {
+    if(!bleDevice) { clearInterval(reconnTimer); return; }
     try {
-        statusText.innerText = "Scanning...";
-        bleDevice = await navigator.bluetooth.requestDevice({
-            filters: [{ services: [SERVICE_UUID] }]
-        });
-        console.log("Device selected:", bleDevice.name);
+      console.log('Attempting reconnect...');
+      const server = await bleDevice.gatt.connect();
+      await setupChars(server);
 
-        statusText.innerText = "Connecting GATT...";
-        const server = await bleDevice.gatt.connect();
-        console.log("GATT connected");
-
-        statusText.innerText = "Getting service...";
-        const service = await server.getPrimaryService(SERVICE_UUID);
-        console.log("Service found");
-
-        statusText.innerText = "Getting configChar...";
-        configChar = await service.getCharacteristic(CONFIG_UUID);
-        console.log("configChar ok");
-
-        statusText.innerText = "Getting notifyChar...";
-        const notifyChar = await service.getCharacteristic(NOTIFY_UUID);
-        console.log("notifyChar ok");
-
-        statusText.innerText = "Starting notifications...";
-        await notifyChar.startNotifications();
-        console.log("Notifications started");
-
-        notifyChar.addEventListener('characteristicvaluechanged', event => {
-            let value = new TextDecoder().decode(event.target.value);
-            console.log("BLE:", value);
-            let match = value.match(/T:(\d+)C H:(\d+)%/);
-            if(match) {
-                document.getElementById("temp").innerText     = match[1];
-                document.getElementById("humidity").innerText = match[2];
-            }
-        });
-
-        bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
-        statusText.innerText = "Connected ✓";
+      setStatus('connected', 'Connected');
+      showReconnectInfo(false);
+      clearInterval(reconnTimer);
+      reconnTimer = null;
+      console.log('Reconnected!');
     }
     catch(err) {
-        console.error("FAIL at:", statusText.innerText, "→", err);
-        statusText.innerText = "Error: " + err.message;
+      console.log('Reconnect failed:', err.message);
     }
+  }, 3000);
 }
 
-function onDisconnected() {
-    statusText.innerText = "Disconnected";
-}
+// ── Room toggle ───────────────────────────────────────
+async function toggleRoom(id) {
+  if(!configChar) return;
+  const idx   = id - 1;
+  roomStates[idx] = !roomStates[idx];
+  const state = roomStates[idx];
 
-async function toggleLiving() {
-    if(!configChar) return;
-    livingState = !livingState;
-    await configChar.writeValue(Uint8Array.of(3, livingState ? 1 : 0));
-    livingBtn.innerText = livingState ? "ON" : "OFF";
-    livingBtn.className = "toggle " + (livingState ? "toggle-on" : "toggle-off");
+  try {
+    await configChar.writeValue(Uint8Array.of(id, state ? 1 : 0));
+    setRoomUI(id, state);
+  }
+  catch(err) {
+    // Revert on fail
+    roomStates[idx] = !state;
+    console.error('Write failed:', err);
+  }
 }
-
-async function toggleToilet() {
-    if(!configChar) return;
-    toiletState = !toiletState;
-    await configChar.writeValue(Uint8Array.of(4, toiletState ? 1 : 0));
-    toiletBtn.innerText = toiletState ? "ON" : "OFF";
-    toiletBtn.className = "toggle " + (toiletState ? "toggle-on" : "toggle-off");
-}
-
-async function toggleBedroom() {
-    if(!configChar) return;
-    bedroomState = !bedroomState;
-    await configChar.writeValue(Uint8Array.of(1, bedroomState ? 1 : 0));
-    bedroomBtn.innerText = bedroomState ? "ON" : "OFF";
-    bedroomBtn.className = "toggle " + (bedroomState ? "toggle-on" : "toggle-off");
-}
-
-async function toggleKitchen() {
-    if(!configChar) return;
-    kitchenState = !kitchenState;
-    await configChar.writeValue(Uint8Array.of(2, kitchenState ? 1 : 0));
-    kitchenBtn.innerText = kitchenState ? "ON" : "OFF";
-    kitchenBtn.className = "toggle " + (kitchenState ? "toggle-on" : "toggle-off");
-}
-
 </script>
-
 </body>
 </html>
