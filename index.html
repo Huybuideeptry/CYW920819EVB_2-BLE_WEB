@@ -222,7 +222,7 @@ body::before {
 /* Sensor cards */
 .sensor-val {
   font-family: 'Comfortaa', sans-serif;
-  font-size: 58px;
+  font-size: 60px;
   font-weight: 800;
   line-height: 1;
   margin-bottom: 4px;
@@ -431,22 +431,28 @@ async function connectBLE() {
   try {
     setStatus('', 'Scanning...');
 
-    bleDevice = await navigator.bluetooth.requestDevice({
-      filters: [{ services: [SERVICE_UUID] }]
-    });
-
-    bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
+    // Nếu đã có device trước (từ lần connect cũ) thì skip requestDevice
+    if(!bleDevice) {
+      bleDevice = await navigator.bluetooth.requestDevice({
+        filters: [{ services: [SERVICE_UUID] }]
+      });
+      bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
+    }
 
     const server = await bleDevice.gatt.connect();
     await setupChars(server);
 
-    setStatus('connected', 'Connected');
+    setStatus('connected', 'Connected ✓');
     showReconnectInfo(false);
     document.getElementById('connectBtn').innerText = '[ CONNECTED ]';
   }
   catch(err) {
     console.error(err);
-    setStatus('error', 'Error');
+
+    // Reset bleDevice nếu fail để lần sau requestDevice lại từ đầu
+    bleDevice = null;
+    setStatus('error', 'Error - ' + err.message);
+    document.getElementById('connectBtn').innerText = '[ CONNECT ]';
   }
 }
 
@@ -455,9 +461,8 @@ function onDisconnected() {
   configChar = null;
   setStatus('reconnecting', 'Reconnecting...');
   showReconnectInfo(true);
-  document.getElementById('connectBtn').innerText = '[ CONNECT ]';
 
-  if(reconnTimer) clearInterval(reconnTimer);
+  if(reconnTimer) clearTimeout(reconnTimer);
 
   let attempt = 0;
 
@@ -467,28 +472,33 @@ function onDisconnected() {
     console.log('Reconnect attempt', attempt);
 
     try {
+      // Thử gatt.connect() trước — works nếu chỉ mất kết nối tạm
       const server = await bleDevice.gatt.connect();
       await setupChars(server);
-
       setStatus('connected', 'Connected');
       showReconnectInfo(false);
-      reconnTimer = null;
       attempt = 0;
-      console.log('Reconnected!');
+      return;
     }
     catch(err) {
-      console.log('Attempt', attempt, 'failed:', err.message);
+      console.log('gatt.connect failed:', err.message);
 
-      // Tăng dần delay: 3s → 5s → 8s → max 10s
-      const delay = Math.min(3000 + attempt * 1000, 10000);
-      reconnTimer = setTimeout(tryReconnect, delay);
+      // Nếu thử nhiều lần vẫn fail → board đã reset
+      // Cần user click để requestDevice lại
+      if(attempt >= 3) {
+        setStatus('error', 'Board reset - click CONNECT');
+        showReconnectInfo(false);
+        document.getElementById('connectBtn').innerText = '[ RECONNECT ]';
+        return; // dừng auto retry, chờ user click
+      }
     }
+
+    const delay = Math.min(3000 + attempt * 2000, 10000);
+    reconnTimer = setTimeout(tryReconnect, delay);
   }
 
-  // Đợi 5s đầu để board kịp boot rồi mới thử
   reconnTimer = setTimeout(tryReconnect, 5000);
 }
-
 // ── Room toggle ───────────────────────────────────────
 async function toggleRoom(id) {
   if(!configChar) return;
