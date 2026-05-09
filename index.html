@@ -172,7 +172,7 @@ body::before {
 }
 
 .room-name {
-  font-size: 25px;
+  font-size: 15px;
   font-weight: 500;
 }
 
@@ -210,7 +210,7 @@ body::before {
 }
 
 .state-text {
-  font-size: 20px;
+  font-size: 10px;
   letter-spacing: 0.1em;
   color: var(--muted);
   margin-top: 10px;
@@ -222,8 +222,8 @@ body::before {
 /* Sensor cards */
 .sensor-val {
   font-family: 'Comfortaa', sans-serif;
-  font-size: 60px;
-  font-weight: 800;
+  font-size: 65px;
+  font-weight: 700;
   line-height: 1;
   margin-bottom: 4px;
   background: linear-gradient(135deg, var(--accent), var(--accent2));
@@ -232,8 +232,37 @@ body::before {
   background-clip: text;
 }
 
+/* Signal bars */
+.signal-wrap {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 20px;
+  opacity: 0;
+  transition: opacity 0.4s;
+  margin-right: 10px;
+}
+
+.signal-wrap.show { opacity: 1; }
+
+.sig-bar {
+  width: 5px;
+  border-radius: 2px;
+  background: var(--border);
+  transition: background 0.3s, box-shadow 0.3s;
+}
+
+.sig-bar.active {
+  background: var(--accent);
+  box-shadow: 0 0 6px rgba(0,245,160,0.5);
+}
+
+.sig-bar.active.weak  { background: var(--danger);  box-shadow: 0 0 6px rgba(255,77,109,0.5); }
+.sig-bar.active.mid   { background: var(--accent2); box-shadow: 0 0 6px rgba(0,200,255,0.5); }
+.sig-bar.active.good  { background: var(--accent);  box-shadow: 0 0 6px rgba(0,245,160,0.5); }
+
 .sensor-unit {
-  font-size: 20px;
+  font-size: 13px;
   color: var(--muted);
   letter-spacing: 0.05em;
 }
@@ -248,7 +277,7 @@ body::before {
 
 .sensor-bar-fill {
   height: 100%;
-  border-radius: 4px;
+  border-radius: 2px;
   background: linear-gradient(90deg, var(--accent), var(--accent2));
   transition: width 0.6s ease;
 }
@@ -262,7 +291,7 @@ body::before {
 
 /* Reconnect indicator */
 .reconnect-info {
-  font-size: 15px;
+  font-size: 11px;
   color: var(--accent2);
   margin-top: 10px;
   display: none;
@@ -285,9 +314,18 @@ body::before {
 
   <div class="header">
     <div class="logo">SMART<span>HOME</span></div>
-    <div class="status-pill" id="statusPill">
-      <div class="dot" id="statusDot"></div>
-      <span id="statusText">Disconnected</span>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="signal-wrap" id="signalBars">
+        <div class="sig-bar" id="s1" style="height:6px"></div>
+        <div class="sig-bar" id="s2" style="height:10px"></div>
+        <div class="sig-bar" id="s3" style="height:14px"></div>
+        <div class="sig-bar" id="s4" style="height:18px"></div>
+        <div class="sig-bar" id="s5" style="height:22px"></div>
+      </div>
+      <div class="status-pill" id="statusPill">
+        <div class="dot" id="statusDot"></div>
+        <span id="statusText">Disconnected</span>
+      </div>
     </div>
   </div>
 
@@ -374,7 +412,25 @@ const CONFIG_UUID  = '5e9bf2a8-f93f-4481-a67e-3b2f4a07891a';
 let bleDevice   = null;
 let configChar  = null;
 let reconnTimer = null;
-let roomStates  = [false, false, false, false]; // index 0=room1 ... 3=room4
+let roomStates  = [false, false, false, false];
+
+// ── Signal tracking ───────────────────────────────────
+let lastNotifyTime = 0;
+
+function updateSignal(level) {
+  // level 1-5
+  const wrap = document.getElementById('signalBars');
+  wrap.classList.add('show');
+  const quality = level <= 2 ? 'weak' : level <= 3 ? 'mid' : 'good';
+  for(let i = 1; i <= 5; i++) {
+    const bar = document.getElementById('s' + i);
+    bar.className = 'sig-bar' + (i <= level ? ' active ' + quality : '');
+  }
+}
+
+function hideSignal() {
+  document.getElementById('signalBars').classList.remove('show');
+}
 
 // ── UI helpers ────────────────────────────────────────
 function setStatus(state, text) {
@@ -415,6 +471,20 @@ function handleNotify(event) {
   console.log('BLE:', value);
   const match = value.match(/T:(\d+)C H:(\d+)%/);
   if(match) updateSensor(match[1], match[2]);
+
+  // Signal estimation từ gap giữa các notification (~1s interval)
+  const now = Date.now();
+  if(lastNotifyTime > 0) {
+    const gap = now - lastNotifyTime;
+    let level;
+    if      (gap < 1300) level = 5;
+    else if (gap < 1800) level = 4;
+    else if (gap < 2500) level = 3;
+    else if (gap < 4000) level = 2;
+    else                 level = 1;
+    updateSignal(level);
+  }
+  lastNotifyTime = now;
 }
 
 // ── Setup characteristics ─────────────────────────────
@@ -431,74 +501,56 @@ async function connectBLE() {
   try {
     setStatus('', 'Scanning...');
 
-    // Nếu đã có device trước (từ lần connect cũ) thì skip requestDevice
-    if(!bleDevice) {
-      bleDevice = await navigator.bluetooth.requestDevice({
-        filters: [{ services: [SERVICE_UUID] }]
-      });
-      bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
-    }
+    bleDevice = await navigator.bluetooth.requestDevice({
+      filters: [{ services: [SERVICE_UUID] }]
+    });
+
+    bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
 
     const server = await bleDevice.gatt.connect();
     await setupChars(server);
 
-    setStatus('connected', 'Connected ✓');
+    setStatus('connected', 'Connected');
     showReconnectInfo(false);
     document.getElementById('connectBtn').innerText = '[ CONNECTED ]';
   }
   catch(err) {
     console.error(err);
-
-    // Reset bleDevice nếu fail để lần sau requestDevice lại từ đầu
-    bleDevice = null;
-    setStatus('error', 'Error - ' + err.message);
-    document.getElementById('connectBtn').innerText = '[ CONNECT ]';
+    setStatus('error', 'Error');
   }
 }
 
 // ── Disconnect handler + auto reconnect ──────────────
 function onDisconnected() {
   configChar = null;
+  lastNotifyTime = 0;
+  hideSignal();
   setStatus('reconnecting', 'Reconnecting...');
   showReconnectInfo(true);
+  document.getElementById('connectBtn').innerText = '[ CONNECT ]';
 
-  if(reconnTimer) clearTimeout(reconnTimer);
+  // Clear any existing timer
+  if(reconnTimer) clearInterval(reconnTimer);
 
-  let attempt = 0;
-
-  async function tryReconnect() {
-    if(!bleDevice) return;
-    attempt++;
-    console.log('Reconnect attempt', attempt);
-
+  reconnTimer = setInterval(async () => {
+    if(!bleDevice) { clearInterval(reconnTimer); return; }
     try {
-      // Thử gatt.connect() trước — works nếu chỉ mất kết nối tạm
+      console.log('Attempting reconnect...');
       const server = await bleDevice.gatt.connect();
       await setupChars(server);
+
       setStatus('connected', 'Connected');
       showReconnectInfo(false);
-      attempt = 0;
-      return;
+      clearInterval(reconnTimer);
+      reconnTimer = null;
+      console.log('Reconnected!');
     }
     catch(err) {
-      console.log('gatt.connect failed:', err.message);
-
-      // Nếu thử nhiều lần vẫn fail → board đã reset
-      // Cần user click để requestDevice lại
-      if(attempt >= 3) {
-        setStatus('error', 'Board reset - click CONNECT');
-        showReconnectInfo(false);
-        document.getElementById('connectBtn').innerText = '[ RECONNECT ]';
-        return; // dừng auto retry, chờ user click
-      }
+      console.log('Reconnect failed:', err.message);
     }
-
-    const delay = Math.min(3000 + attempt * 2000, 10000);
-    reconnTimer = setTimeout(tryReconnect, delay);
-  }
-
-  reconnTimer = setTimeout(tryReconnect, 5000);
+  }, 3000);
 }
+
 // ── Room toggle ───────────────────────────────────────
 async function toggleRoom(id) {
   if(!configChar) return;
