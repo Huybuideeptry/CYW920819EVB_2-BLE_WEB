@@ -210,7 +210,7 @@ body::before {
 }
 
 .state-text {
-  font-size: 10px;
+  font-size: 20px;
   letter-spacing: 0.1em;
   color: var(--muted);
   margin-top: 10px;
@@ -222,7 +222,7 @@ body::before {
 /* Sensor cards */
 .sensor-val {
   font-family: 'Comfortaa', sans-serif;
-  font-size: 48px;
+  font-size: 58px;
   font-weight: 800;
   line-height: 1;
   margin-bottom: 4px;
@@ -233,7 +233,7 @@ body::before {
 }
 
 .sensor-unit {
-  font-size: 13px;
+  font-size: 20px;
   color: var(--muted);
   letter-spacing: 0.05em;
 }
@@ -248,7 +248,7 @@ body::before {
 
 .sensor-bar-fill {
   height: 100%;
-  border-radius: 2px;
+  border-radius: 4px;
   background: linear-gradient(90deg, var(--accent), var(--accent2));
   transition: width 0.6s ease;
 }
@@ -262,7 +262,7 @@ body::before {
 
 /* Reconnect indicator */
 .reconnect-info {
-  font-size: 11px;
+  font-size: 15px;
   color: var(--accent2);
   margin-top: 10px;
   display: none;
@@ -457,26 +457,36 @@ function onDisconnected() {
   showReconnectInfo(true);
   document.getElementById('connectBtn').innerText = '[ CONNECT ]';
 
-  // Clear any existing timer
   if(reconnTimer) clearInterval(reconnTimer);
 
-  reconnTimer = setInterval(async () => {
-    if(!bleDevice) { clearInterval(reconnTimer); return; }
+  let attempt = 0;
+
+  async function tryReconnect() {
+    if(!bleDevice) return;
+    attempt++;
+    console.log('Reconnect attempt', attempt);
+
     try {
-      console.log('Attempting reconnect...');
       const server = await bleDevice.gatt.connect();
       await setupChars(server);
 
       setStatus('connected', 'Connected');
       showReconnectInfo(false);
-      clearInterval(reconnTimer);
       reconnTimer = null;
+      attempt = 0;
       console.log('Reconnected!');
     }
     catch(err) {
-      console.log('Reconnect failed:', err.message);
+      console.log('Attempt', attempt, 'failed:', err.message);
+
+      // Tăng dần delay: 3s → 5s → 8s → max 10s
+      const delay = Math.min(3000 + attempt * 1000, 10000);
+      reconnTimer = setTimeout(tryReconnect, delay);
     }
-  }, 3000);
+  }
+
+  // Đợi 5s đầu để board kịp boot rồi mới thử
+  reconnTimer = setTimeout(tryReconnect, 5000);
 }
 
 // ── Room toggle ───────────────────────────────────────
