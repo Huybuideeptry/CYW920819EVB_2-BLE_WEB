@@ -511,9 +511,25 @@ function handleNotify(event) {
   const thMatch = value.match(/T:(\d+)C H:(\d+)%/);
   if(thMatch) updateSensor(thMatch[1], thMatch[2]);
 
-  // Parse Gas
-  const gasMatch = value.match(/G:(OK|!!)/);
-  if(gasMatch) updateGas(gasMatch[1] === '!!');
+  const gasMatch = value.match(/G:(OK|!!|CA)/);
+if(gasMatch) {
+    if(gasMatch[1] === 'CA') {
+        // Đang calibrate — hiện trạng thái chờ
+        const card   = document.getElementById('gasCard');
+        const status = document.getElementById('gasStatus');
+        const unit   = document.getElementById('gasUnit');
+        card.classList.remove('gas-danger');
+        status.className = 'sensor-val';
+        status.innerText = '...';
+        status.style.fontSize = '24px';
+        unit.innerText = 'Đang calibrate...';
+        document.getElementById('gasUpdate').innerText =
+            'Updated ' + new Date().toLocaleTimeString('vi-VN');
+    } else {
+        document.getElementById('gasStatus').style.fontSize = '';
+        updateGas(gasMatch[1] === '!!');
+    }
+}
 
   // Signal estimation
   const now = Date.now();
