@@ -134,7 +134,7 @@ body::before {
 }
 
 .card-label {
-  font-size: 13px;
+  font-size: 10px;
   letter-spacing: 0.15em;
   text-transform: uppercase;
   color: var(--muted);
@@ -172,7 +172,7 @@ body::before {
 }
 
 .room-name {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 500;
 }
 
@@ -222,7 +222,7 @@ body::before {
 /* Sensor cards */
 .sensor-val {
   font-family: 'Comfortaa', sans-serif;
-  font-size: 75px;
+  font-size: 48px;
   font-weight: 700;
   line-height: 1;
   margin-bottom: 4px;
@@ -262,7 +262,7 @@ body::before {
 .sig-bar.active.good  { background: var(--accent);  box-shadow: 0 0 6px rgba(0,245,160,0.5); }
 
 .sensor-unit {
-  font-size: 18px;
+  font-size: 13px;
   color: var(--muted);
   letter-spacing: 0.05em;
 }
@@ -306,6 +306,32 @@ body::before {
   color: var(--muted);
   margin-top: 8px;
   letter-spacing: 0.05em;
+}
+
+/* Gas card danger state */
+.card.gas-danger {
+  border-color: var(--danger);
+  animation: gas-pulse 1s infinite;
+}
+
+.card.gas-danger::after {
+  background: linear-gradient(90deg, transparent, rgba(255,77,109,0.3), transparent);
+}
+
+@keyframes gas-pulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(255,77,109,0); }
+  50%       { box-shadow: 0 0 20px rgba(255,77,109,0.4); }
+}
+
+.sensor-val.danger {
+  background: linear-gradient(135deg, var(--danger), #ff8c42);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.sensor-bar-fill.danger {
+  background: linear-gradient(90deg, var(--danger), #ff8c42);
 }
 </style>
 </head>
@@ -383,7 +409,7 @@ body::before {
     <div class="card">
       <div class="card-label">Nhiệt độ</div>
       <div class="sensor-val" id="temp">--</div>
-      <div class="sensor-unit">°C/Temperature</div>
+      <div class="sensor-unit">°C / Temperature</div>
       <div class="sensor-bar">
         <div class="sensor-bar-fill" id="tempBar" style="width:0%"></div>
       </div>
@@ -394,11 +420,22 @@ body::before {
     <div class="card">
       <div class="card-label">Độ ẩm</div>
       <div class="sensor-val" id="humidity">--</div>
-      <div class="sensor-unit">%/Humidity</div>
+      <div class="sensor-unit">% / Humidity</div>
       <div class="sensor-bar">
         <div class="sensor-bar-fill" id="humBar" style="width:0%"></div>
       </div>
       <div class="last-update" id="humUpdate">No data</div>
+    </div>
+
+    <!-- Gas sensor -->
+    <div class="card" id="gasCard">
+      <div class="card-label">Khí gas MQ-6</div>
+      <div class="sensor-val" id="gasStatus">--</div>
+      <div class="sensor-unit" id="gasUnit">Chờ calibrate...</div>
+      <div class="sensor-bar">
+        <div class="sensor-bar-fill" id="gasBar" style="width:0%"></div>
+      </div>
+      <div class="last-update" id="gasUpdate">No data</div>
     </div>
 
   </div>
@@ -469,10 +506,16 @@ function setRoomUI(id, state) {
 function handleNotify(event) {
   const value = new TextDecoder().decode(event.target.value);
   console.log('BLE:', value);
-  const match = value.match(/T:(\d+)C H:(\d+)%/);
-  if(match) updateSensor(match[1], match[2]);
 
-  // Signal estimation từ gap giữa các notification (~1s interval)
+  // Parse T và H
+  const thMatch = value.match(/T:(\d+)C H:(\d+)%/);
+  if(thMatch) updateSensor(thMatch[1], thMatch[2]);
+
+  // Parse Gas
+  const gasMatch = value.match(/G:(OK|!!)/);
+  if(gasMatch) updateGas(gasMatch[1] === '!!');
+
+  // Signal estimation
   const now = Date.now();
   if(lastNotifyTime > 0) {
     const gap = now - lastNotifyTime;
@@ -485,6 +528,35 @@ function handleNotify(event) {
     updateSignal(level);
   }
   lastNotifyTime = now;
+}
+
+// ── Gas UI ────────────────────────────────────────────
+function updateGas(danger) {
+  const card   = document.getElementById('gasCard');
+  const status = document.getElementById('gasStatus');
+  const unit   = document.getElementById('gasUnit');
+  const bar    = document.getElementById('gasBar');
+  const update = document.getElementById('gasUpdate');
+
+  if(danger) {
+    card.classList.add('gas-danger');
+    status.className = 'sensor-val danger';
+    status.innerText = '⚠ NGUY HIỂM';
+    unit.innerText   = 'Phát hiện rò rỉ khí gas!';
+    bar.className    = 'sensor-bar-fill danger';
+    bar.style.width  = '100%';
+    document.title   = '⚠ GAS LEAK!';
+  } else {
+    card.classList.remove('gas-danger');
+    status.className = 'sensor-val';
+    status.innerText = 'AN TOÀN';
+    unit.innerText   = 'Không phát hiện khí gas';
+    bar.className    = 'sensor-bar-fill';
+    bar.style.width  = '15%';
+    document.title   = 'Smart Home';
+  }
+
+  update.innerText = 'Updated ' + new Date().toLocaleTimeString('vi-VN');
 }
 
 // ── Setup characteristics ─────────────────────────────
