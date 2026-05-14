@@ -511,20 +511,17 @@ function handleNotify(event) {
   const thMatch = value.match(/T:(\d+)C H:(\d+)%/);
   if(thMatch) updateSensor(thMatch[1], thMatch[2]);
 
-  const gasMatch = value.match(/G:(OK|!!|CA)/);
+ const gasMatch = value.match(/G:(OK|!!|CA)/);
 if(gasMatch) {
+    const now = new Date().toLocaleTimeString('vi-VN');
     if(gasMatch[1] === 'CA') {
-        // Đang calibrate — hiện trạng thái chờ
-        const card   = document.getElementById('gasCard');
-        const status = document.getElementById('gasStatus');
-        const unit   = document.getElementById('gasUnit');
-        card.classList.remove('gas-danger');
-        status.className = 'sensor-val';
-        status.innerText = '...';
-        status.style.fontSize = '24px';
-        unit.innerText = 'Đang calibrate...';
-        document.getElementById('gasUpdate').innerText =
-            'Updated ' + new Date().toLocaleTimeString('vi-VN');
+        document.getElementById('gasCard').classList.remove('gas-danger');
+        document.getElementById('gasStatus').className = 'sensor-val';
+        document.getElementById('gasStatus').innerText = '...';
+        document.getElementById('gasStatus').style.fontSize = '24px';
+        document.getElementById('gasUnit').innerText = 'Đang calibrate...';
+        document.getElementById('gasBar').style.width = '0%';
+        document.getElementById('gasUpdate').innerText = 'Updated ' + now;  // ← fix
     } else {
         document.getElementById('gasStatus').style.fontSize = '';
         updateGas(gasMatch[1] === '!!');
